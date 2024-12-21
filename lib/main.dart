@@ -1,22 +1,24 @@
 import 'package:flutter/material.dart';
-import 'widgets/students_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'screens/navigation_hub.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const ProviderScope(child: CampusApp()));
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+class CampusApp extends StatelessWidget {
+  const CampusApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Students App',
+      title: 'Campus Manager',
       theme: ThemeData(
         primarySwatch: Colors.indigo,
-        scaffoldBackgroundColor: Colors.grey[100],
+        textTheme: GoogleFonts.latoTextTheme(),
       ),
-      home: StudentsScreen(),
+      home: const NavigationHub(),
     );
   }
 }
