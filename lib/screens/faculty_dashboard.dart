@@ -12,6 +12,10 @@ class FacultyDashboard extends ConsumerWidget {
     final faculties = ref.watch(facultiesProvider);
     final learners = ref.watch(learnersProvider);
 
+    if (learners.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     return GridView.builder(
       padding: const EdgeInsets.all(16),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -22,8 +26,8 @@ class FacultyDashboard extends ConsumerWidget {
       itemCount: faculties.length,
       itemBuilder: (context, index) {
         final faculty = faculties[index];
-        final learnerCount = learners
-            .where((learner) => learner.facultyId == faculty.id)
+        final learnerCount = learners.learners
+            .where((learner) => learner.faculty.id == faculty.id)
             .length;
 
         return FacultyCard(faculty: faculty, learnerCount: learnerCount);

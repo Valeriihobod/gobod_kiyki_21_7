@@ -1,43 +1,139 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/learner.dart';
 
-class LearnerManager extends StateNotifier<List<Learner>> {
-  LearnerManager() : super([]);
+class LearnerState {
+  final List<Learner> learners;
+  final bool isLoading;
+  final String? exceptionMsg;
 
-  Learner? _lastRemovedLearner;
-  int? _lastRemovedIndex;
+  LearnerState({
+    required this.learners,
+    required this.isLoading,
+    this.exceptionMsg,
+  });
 
-  void addLearner(Learner learner) {
-    state = [...state, learner];
+  LearnerState copyWith({
+    List<Learner>? learners,
+    bool? isLoading,
+    String? exceptionMsg,
+  }) {
+    return LearnerState(
+      learners: learners ?? this.learners,
+      isLoading: isLoading ?? this.isLoading,
+      exceptionMsg: exceptionMsg ?? this.exceptionMsg,
+    );
+  }
+}
+
+class LearnerManager extends StateNotifier<LearnerState> {
+  LearnerManager() : super(LearnerState(learners: [], isLoading: false));
+
+  Learner? _learner;
+  int? _index;
+
+  Future<void> loadStudents() async {
+    state = state.copyWith(isLoading: true, exceptionMsg: null);
+    try {
+      final learners = await Learner.remoteGetList();
+      state = state.copyWith(learners: learners, isLoading: false);
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        exceptionMsg: e.toString(),
+      );
+    }
   }
 
-  void updateLearner(int index, Learner updatedLearner) {
-    final updatedList = [...state];
-    updatedList[index] = updatedLearner;
-    state = updatedList;
+  Future<void> addLearner(
+    String givenName,
+    String familyName,
+    facultyId,
+    sex,
+    int grade,
+  ) async {
+    try {
+      state = state.copyWith(isLoading: true, exceptionMsg: null);
+      final student = await Learner.remoteCreate(
+          givenName, familyName, facultyId, sex, grade);
+      state = state.copyWith(
+        learners: [...state.learners, student],
+        isLoading: false,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        exceptionMsg: e.toString(),
+      );
+    }
+  }
+
+  Future<void> updateLearner(
+    int index,
+    String givenName,
+    String familyName,
+    facultyId,
+    sex,
+    int grade,
+  ) async {
+    state = state.copyWith(isLoading: true, exceptionMsg: null);
+    try {
+      final updatedStudent = await Learner.remoteUpdate(
+        state.learners[index].id,
+        givenName,
+        familyName,
+        facultyId,
+        sex,
+        grade,
+      );
+      final updatedList = [...state.learners];
+      updatedList[index] = updatedStudent;
+      state = state.copyWith(learners: updatedList, isLoading: false);
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        exceptionMsg: e.toString(),
+      );
+    }
   }
 
   void removeLearner(int index) {
-    _lastRemovedLearner = state[index];
-    _lastRemovedIndex = index;
-
-    state = [...state.sublist(0, index), ...state.sublist(index + 1)];
+    _learner = state.learners[index];
+    _index = index;
+    final updatedList = [...state.learners];
+    updatedList.removeAt(index);
+    state = state.copyWith(learners: updatedList);
   }
 
   void undoRemove() {
-    if (_lastRemovedLearner != null && _lastRemovedIndex != null) {
-      final updatedList = [...state];
-      updatedList.insert(_lastRemovedIndex!, _lastRemovedLearner!);
+    if (_learner != null && _index != null) {
+      final updatedList = [...state.learners];
+      updatedList.insert(_index!, _learner!);
+      state = state.copyWith(learners: updatedList);
+    }
+  }
 
-      state = updatedList;
-
-      _lastRemovedLearner = null;
-      _lastRemovedIndex = null;
+  Future<void> deletePermanent() async {
+    state = state.copyWith(isLoading: true, exceptionMsg: null);
+    try {
+      if (_learner != null) {
+        await Learner.remoteDelete(_learner!.id);
+        _learner = null;
+        _index = null;
+      }
+      state = state.copyWith(isLoading: false);
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        exceptionMsg: e.toString(),
+      );
     }
   }
 }
 
 final learnersProvider =
-    StateNotifierProvider<LearnerManager, List<Learner>>((ref) {
-  return LearnerManager();
+    StateNotifierProvider<LearnerManager, LearnerState>((ref) {
+
+  final notifier = LearnerManager();
+  notifier.loadStudents();
+  return notifier;
 });

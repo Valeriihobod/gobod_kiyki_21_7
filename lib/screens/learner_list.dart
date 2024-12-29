@@ -10,6 +10,23 @@ class LearnerList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final learners = ref.watch(learnersProvider);
+    if (learners.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (learners.exceptionMsg != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              learners.exceptionMsg!,
+              style: const TextStyle(color: Colors.white),
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    });
 
     return Scaffold(
       appBar: AppBar(
@@ -20,21 +37,17 @@ class LearnerList extends ConsumerWidget {
             showModalBottomSheet(
               context: context,
               isScrollControlled: true,
-              builder: (_) => LearnerForm(
-                onSave: (newLearner) {
-                  ref.read(learnersProvider.notifier).addLearner(newLearner);
-                },
-              ),
+              builder: (_) => const LearnerForm(),
             );
           },
         ),
       ),
-      body: learners.isEmpty
+      body: learners.learners.isEmpty
           ? const Center(child: Text('No learners available'))
           : ListView.builder(
-              itemCount: learners.length,
+              itemCount: learners.learners.length,
               itemBuilder: (context, index) {
-                final learner = learners[index];
+                final learner = learners.learners[index];
                 return Dismissible(
                   key: ValueKey(learner.id),
                   background: Container(color: Colors.red),
@@ -46,14 +59,7 @@ class LearnerList extends ConsumerWidget {
                       showModalBottomSheet(
                         context: context,
                         isScrollControlled: true,
-                        builder: (_) => LearnerForm(
-                          learner: learner,
-                          onSave: (updatedLearner) {
-                            ref
-                                .read(learnersProvider.notifier)
-                                .updateLearner(index, updatedLearner);
-                          },
-                        ),
+                        builder: (_) => LearnerForm(learnerIndex: index,),
                       );
                     },
                     onDelete: () {
@@ -71,7 +77,11 @@ class LearnerList extends ConsumerWidget {
                             },
                           ),
                         ),
-                      );
+                      ).closed.then((value) {
+                        if (value != SnackBarClosedReason.action) {
+                          ref.read(learnersProvider.notifier).deletePermanent();
+                        }
+                      });
                     },
                   ),
                 );
